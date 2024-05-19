@@ -14,6 +14,10 @@
 // dupを使うためのライブラリ
 #include <unistd.h>
 
+// inet_ntoaを使うためのライブラリ
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
 #define PORTNO_BUFSIZE 16
 #define PORTNO 80
 
@@ -64,6 +68,18 @@ int tcp_listen_port(int portno)
     }
 
     freeaddrinfo(ai); // addrinfo構造体を解放
+
+    // ソケットからIPアドレスとポート番号を取得する
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr); // lenはaddrが指している領域のサイズ(バイト単位)に初期化しておかなければならない
+    if(getsockname(s, (struct sockaddr*)&addr, &len)){
+        return -1;
+    }
+    char addr_string[20];
+    strcpy(addr_string, inet_ntoa(addr.sin_addr));
+    int port = ntohs(addr.sin_port);
+
+    printf("接続待機ソケットを作成しました．\nファイルディスクリプタ: %d\nポート番号: %d\nIPアドレス: %s\n\n", s, port, addr_string);
 
     return (s); // 接続待ちしているソケットのファイルディスクリプタを返す
 }
@@ -128,6 +144,8 @@ void http_server_loop(int portno)
 {
     int acc, com;
 
+    printf("サーバを起動しました\n\n");
+
     acc = tcp_listen_port(portno);
     if (acc < 0) exit(-1);
 
@@ -141,6 +159,18 @@ void http_server_loop(int portno)
             perror("accept");
             exit(-1);
         }
+
+        // ソケットからIPアドレスとポート番号を取得する
+        struct sockaddr_in addr;
+        socklen_t len = sizeof(addr); // lenはaddrが指している領域のサイズ(バイト単位)に初期化しておかなければならない
+        if(getsockname(com, (struct sockaddr*)&addr, &len)){
+            exit(0);
+        }
+        char addr_string[20];
+        strcpy(addr_string, inet_ntoa(addr.sin_addr));
+        int port = ntohs(addr.sin_port);
+
+        printf("通信ソケットを作成しました．\nファイルディスクリプタ: %d\nポート番号: %d\nIPアドレス: %s\n\n", com, port, addr_string);
 
         // socketのファイルディスクリプタから，FILEポインタを作成
         if (fdopen_sock(com, &in, &out) < 0) {
